@@ -28,35 +28,46 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
       
-      # Step 4: Initialize Terraform
+      # Step 4: Create S3 bucket
+      - name: Check and create S3 bucket if not exists
+        run: |
+          BUCKET_NAME="farhan-g2-test-bucket"
+          if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
+            echo "Bucket $BUCKET_NAME already exists. Skipping creation."
+          else
+            echo "Bucket $BUCKET_NAME does not exist. Creating..."
+            aws s3api create-bucket --bucket "$BUCKET_NAME" --region us-east-1 --create-bucket-configuration LocationConstraint=us-west-1
+          fi
+      
+      # Step 5: Initialize Terraform
       - name: Terraform Init
         run: terraform init
 
-      # Step 5: Terraform workspace select/create
+      # Step 6: Terraform workspace select/create
       - name: Terraform workspace
         run: terraform workspace select --or-create=true g2-interview
 
-      # Step 6: Terraform Plan
+      # Step 7: Terraform Plan
       - name: Terraform Plan
         run: terraform plan
 
-      # Step 7: Terraform Apply
+      # Step 8: Terraform Apply
       - name: Terraform Apply
         run: terraform apply -auto-approve
 
-      # Step 8: Install kubectl
+      # Step 9: Install kubectl
       - name: Install kubectl
         run: |
           curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
           chmod +x ./kubectl
           sudo mv ./kubectl /usr/local/bin/kubectl
 
-      # Step 9: Connect kubectl to cluster
+      # Step 10: Connect kubectl to cluster
       - name: Configure kubectl
         run: |
           aws eks update-kubeconfig --name g2-interview-cluster --region us-east-1
 
-      # Step 10: Get load balancer address
+      # Step 11: Get load balancer address
       - name: Get load balancer address
         run: |
           DNS=$(kubectl get service ingress-nginx-controller -n ingress-nginx -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
